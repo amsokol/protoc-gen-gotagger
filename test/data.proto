@@ -3,4 +3,12 @@ package test;
 
 message Data {
     string val = 1;
+
+    message nested {
+        string val2 = 1;
+
+        message OneMore_Nested {
+            string val3 = 1;
+        }
+    }
 }
