@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fatih/structtag"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/plugin"
 )
@@ -20,24 +21,22 @@ type Plugin interface {
 // NewPlugin returns object is implementing Plugin interface
 func NewPlugin(in io.Reader, out io.Writer) Plugin {
 	return &plugin{
-		in:        in,
-		request:   &plugin_go.CodeGeneratorRequest{},
-		goStructs: map[string]goStructFields{},
-		response:  &plugin_go.CodeGeneratorResponse{},
-		out:       out,
+		in:          in,
+		request:     &plugin_go.CodeGeneratorRequest{},
+		targetFiles: map[string]goFile{},
+		response:    &plugin_go.CodeGeneratorResponse{},
+		out:         out,
 	}
 }
-
-type goStructFields map[string]string
 
 type plugin struct {
 	in      io.Reader
 	request *plugin_go.CodeGeneratorRequest
 
-	xxxTag     string
+	xxxTag     *structtag.Tags
 	outputPath string
 
-	goStructs map[string]goStructFields
+	targetFiles map[string]goFile
 
 	response *plugin_go.CodeGeneratorResponse
 	out      io.Writer
@@ -98,7 +97,10 @@ func (p *plugin) parseParameter() error {
 		case "xxx":
 			// we can't use ':' character in command parameter
 			// so we use '+' instead and replace it by ':' after parsing
-			p.xxxTag = strings.Replace(m[2], `+"`, `:"`, -1)
+			var err error
+			if p.xxxTag, err = structtag.Parse(strings.Replace(m[2], `+"`, `:"`, -1)); err != nil {
+				return fmt.Errorf("failed to parse XXX tags '%s': %s", m[2], err.Error())
+			}
 		case "output_path":
 			p.outputPath = m[2]
 		default:
@@ -114,17 +116,17 @@ func (p *plugin) Proccess() error {
 		return p.error(err.Error())
 	}
 
-	// TODO: how to parse and update Go file
-	// https://golang.org/pkg/go/ast/#example_CommentMap
-	// https://github.com/micro/protoc-gen-micro
-
 	if err := p.parseParameter(); err != nil {
 		return p.error("failed to parse 'gotagger_out' parameter value: %s", err.Error())
 	}
 
-	if err := p.analyzeSources(); err != nil {
+	if err := p.analyzeSourceFiles(); err != nil {
 		return p.error("failed to analyze source proto files: %s", err.Error())
 	}
 
-	return p.error("not implemented")
+	if err := p.modifyTargetFiles(); err != nil {
+		return p.error("failed to modify generated Go files: %s", err.Error())
+	}
+
+	return p.write()
 }

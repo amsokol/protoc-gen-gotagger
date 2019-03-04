@@ -3,9 +3,13 @@
         "Structs",
         "Unkeyed",
         "amsokol",
+        "fatih",
+        "fset",
         "gotagger",
         "msgs",
         "protobuf",
-        "protoc"
+        "protoc",
+        "retag",
+        "structtag"
     ]
 }

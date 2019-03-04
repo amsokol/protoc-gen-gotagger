@@ -18,18 +18,18 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3	// please upgrade the proto package
 
 type Data struct {
-	Val                  string   `protobuf:"bytes,1,opt,name=val,proto3" json:"val,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Val			string		`protobuf:"bytes,1,opt,name=val,proto3" json:"val,omitempty"`
+	XXX_NoUnkeyedLiteral	struct{}	`json:"-" bson:"-"`
+	XXX_unrecognized	[]byte		`json:"-" bson:"-"`
+	XXX_sizecache		int32		`json:"-" bson:"-"`
 }
 
-func (m *Data) Reset()         { *m = Data{} }
-func (m *Data) String() string { return proto.CompactTextString(m) }
-func (*Data) ProtoMessage()    {}
+func (m *Data) Reset()		{ *m = Data{} }
+func (m *Data) String() string	{ return proto.CompactTextString(m) }
+func (*Data) ProtoMessage()	{}
 func (*Data) Descriptor() ([]byte, []int) {
 	return fileDescriptor_871986018790d2fd, []int{0}
 }
@@ -60,15 +60,15 @@ func (m *Data) GetVal() string {
 }
 
 type DataNested struct {
-	Val2                 string   `protobuf:"bytes,1,opt,name=val2,proto3" json:"val2,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Val2			string		`protobuf:"bytes,1,opt,name=val2,proto3" json:"val2,omitempty"`
+	XXX_NoUnkeyedLiteral	struct{}	`json:"-" bson:"-"`
+	XXX_unrecognized	[]byte		`json:"-" bson:"-"`
+	XXX_sizecache		int32		`json:"-" bson:"-"`
 }
 
-func (m *DataNested) Reset()         { *m = DataNested{} }
-func (m *DataNested) String() string { return proto.CompactTextString(m) }
-func (*DataNested) ProtoMessage()    {}
+func (m *DataNested) Reset()		{ *m = DataNested{} }
+func (m *DataNested) String() string	{ return proto.CompactTextString(m) }
+func (*DataNested) ProtoMessage()	{}
 func (*DataNested) Descriptor() ([]byte, []int) {
 	return fileDescriptor_871986018790d2fd, []int{0, 0}
 }
@@ -99,15 +99,15 @@ func (m *DataNested) GetVal2() string {
 }
 
 type DataNested_OneMore_Nested struct {
-	Val3                 string   `protobuf:"bytes,1,opt,name=val3,proto3" json:"val3,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Val3			string		`protobuf:"bytes,1,opt,name=val3,proto3" json:"val3,omitempty"`
+	XXX_NoUnkeyedLiteral	struct{}	`json:"-" bson:"-"`
+	XXX_unrecognized	[]byte		`json:"-" bson:"-"`
+	XXX_sizecache		int32		`json:"-" bson:"-"`
 }
 
-func (m *DataNested_OneMore_Nested) Reset()         { *m = DataNested_OneMore_Nested{} }
-func (m *DataNested_OneMore_Nested) String() string { return proto.CompactTextString(m) }
-func (*DataNested_OneMore_Nested) ProtoMessage()    {}
+func (m *DataNested_OneMore_Nested) Reset()		{ *m = DataNested_OneMore_Nested{} }
+func (m *DataNested_OneMore_Nested) String() string	{ return proto.CompactTextString(m) }
+func (*DataNested_OneMore_Nested) ProtoMessage()	{}
 func (*DataNested_OneMore_Nested) Descriptor() ([]byte, []int) {
 	return fileDescriptor_871986018790d2fd, []int{0, 0, 0}
 }
@@ -143,7 +143,7 @@ func init() {
 	proto.RegisterType((*DataNested_OneMore_Nested)(nil), "test.Data.nested.OneMore_Nested")
 }
 
-func init() { proto.RegisterFile("data.proto", fileDescriptor_871986018790d2fd) }
+func init()	{ proto.RegisterFile("data.proto", fileDescriptor_871986018790d2fd) }
 
 var fileDescriptor_871986018790d2fd = []byte{
 	// 112 bytes of a gzipped FileDescriptorProto

@@ -2,12 +2,13 @@ package tagger
 
 import (
 	"fmt"
-	"log"
+	"path/filepath"
+	"strings"
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
 
-func (p *plugin) analyzeSources() error {
+func (p *plugin) analyzeSourceFiles() error {
 	for _, f := range p.request.ProtoFile {
 		if err := p.analyzeFile(f); err != nil {
 			return fmt.Errorf("failed to analyze proto file '%s': %s", *f.Name, err.Error())
@@ -18,43 +19,45 @@ func (p *plugin) analyzeSources() error {
 }
 
 func (p *plugin) analyzeFile(f *descriptor.FileDescriptorProto) error {
-	// TODO: DEBUG
-	log.Printf("source file: %s", *f.Name)
-
 	if f.Syntax != nil && *f.Syntax != "proto3" {
 		return fmt.Errorf("unsupported syntax '%s', must be 'proto3'", *f.Syntax)
 	}
 
+	file := goFile{structs: map[string]goStruct{}}
+
 	for _, m := range f.MessageType {
-		if err := p.analyzeMessageType([]string{}, m); err != nil {
+		if err := p.analyzeMessageType(file, []string{}, m); err != nil {
 			return fmt.Errorf("failed to analyze message type '%s': %s", *m.Name, err.Error())
 		}
+	}
+
+	if len(file.structs) > 0 {
+		n := filepath.Base(*f.Name)
+		n = strings.TrimSuffix(n, filepath.Ext(n))
+		p.targetFiles[n+".pb.go"] = file
 	}
 
 	return nil
 }
 
-func (p *plugin) analyzeMessageType(parents []string, message *descriptor.DescriptorProto) error {
-	// TODO: DEBUG
-	log.Printf("message type: %s", p.getMessageURI(parents, *message.Name))
+func (p *plugin) analyzeMessageType(file goFile, parents []string, message *descriptor.DescriptorProto) error {
+	s := goStruct{}
 
-	fields := goStructFields{}
-
-	if len(p.xxxTag) > 0 {
-		fields["XXX_NoUnkeyedLiteral"] = p.xxxTag
-		fields["XXX_unrecognized"] = p.xxxTag
-		fields["XXX_sizecache"] = p.xxxTag
+	if p.xxxTag != nil {
+		s["XXX_NoUnkeyedLiteral"] = p.xxxTag
+		s["XXX_unrecognized"] = p.xxxTag
+		s["XXX_sizecache"] = p.xxxTag
 	}
 
 	for _, m := range message.NestedType {
 		ps := p.addMessageParent(parents, *message.Name)
-		if err := p.analyzeMessageType(ps, m); err != nil {
+		if err := p.analyzeMessageType(file, ps, m); err != nil {
 			return fmt.Errorf("failed to analyze message type '%s': %s", p.getMessageURI(ps, *m.Name), err.Error())
 		}
 	}
 
-	if len(fields) > 0 {
-		p.goStructs[p.toGolangStructName(parents, *message.Name)] = fields
+	if len(s) > 0 {
+		file.structs[p.toGolangStructName(parents, *message.Name)] = s
 	}
 
 	return nil
