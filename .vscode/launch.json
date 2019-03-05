@@ -9,9 +9,11 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/protoc-gen-gotagger/main.go",
+      "program": "${workspaceFolder}/main.go",
       "env": {},
-      "args": ["--debug=${workspaceFolder}/test/stdin.bin"]
+      "args": [
+        "--debug=${workspaceFolder}/stdin.bin"
+      ]
     }
   ]
 }
