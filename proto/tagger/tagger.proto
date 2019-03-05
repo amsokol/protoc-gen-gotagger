@@ -1,3 +1,5 @@
+// This file has been copied from here:
+// https://github.com/srikrsna/protoc-gen-gotag/blob/master/tagger/tagger.proto
 syntax = "proto3";
 
 package tagger;

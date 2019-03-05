@@ -55,6 +55,7 @@ func (p *plugin) analyzeFile(f *descriptor.FileDescriptorProto) error {
 
 func (p *plugin) analyzeMessageType(file goFile, parents []string, message *descriptor.DescriptorProto) error {
 	s := goStruct{}
+	goMes := p.toGolangStructName(parents, *message.Name)
 
 	if p.xxxTag != nil {
 		s["XXX_NoUnkeyedLiteral"] = p.xxxTag
@@ -73,7 +74,30 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 			if err != nil {
 				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
 			}
-			s[p.toGolangFieldName(*field.Name)] = tags
+
+			n := p.toGolangFieldName(*field.Name)
+			if field.OneofIndex != nil {
+				oneOf := goStruct{}
+				oneOf[n] = tags
+				file.structs[goMes+"_"+n] = oneOf
+			} else {
+				s[n] = tags
+			}
+		}
+	}
+
+	for _, oneOf := range message.GetOneofDecl() {
+		ext, err := p.getExtension(oneOf.GetOptions(), E_OneofTags)
+		if err != nil {
+			return fmt.Errorf("failed to get extension for oneof '%s' type '%s': %s",
+				*oneOf.Name, p.getMessageURI(parents, *message.Name), err.Error())
+		}
+		if len(ext) > 0 {
+			tags, err := structtag.Parse(ext)
+			if err != nil {
+				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
+			}
+			s[p.toGolangFieldName(*oneOf.Name)] = tags
 		}
 	}
 
@@ -85,12 +109,14 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 	}
 
 	if len(s) > 0 {
-		file.structs[p.toGolangStructName(parents, *message.Name)] = s
+		file.structs[goMes] = s
 	}
 
 	return nil
 }
 
+// Following code has been copied from here:
+// https://github.com/lyft/protoc-gen-star/blob/master/extension.go
 func (p *plugin) getExtension(opts proto.Message, ext *proto.ExtensionDesc) (string, error) {
 	if opts == nil {
 		return "", nil

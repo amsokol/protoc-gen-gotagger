@@ -58,8 +58,8 @@ func (p *plugin) read() error {
 		return fmt.Errorf("failed to unmarshal request from binary data: %s", err.Error())
 	}
 
-	// TODO: remove DEBUG
-	// ioutil.WriteFile("./stdin.bin", data, 0)
+	// TODO: comment DEBUG action below
+	ioutil.WriteFile("./stdin.bin", data, 0)
 
 	return nil
 }

@@ -6,6 +6,12 @@ import "tagger/tagger.proto";
 message Data {
     string val = 1 [(tagger.tags) = "graphql:\"name11,optional\" bson:\"name12,omitempty\"" ];
 
+    oneof one_of {
+        option (tagger.oneof_tags) = "graphql:\"withNewTags,optional\"";
+        string a = 5 [(tagger.tags) = "bson:\"A\""];
+        int32 b_jk = 6 [(tagger.tags) = "bson:\"b_Jk\""];
+    }
+
     message nested {
         string __val2_value = 1 [(tagger.tags) = "graphql:\"name21,optional\" bson:\"name22,omitempty\"" ];
 
