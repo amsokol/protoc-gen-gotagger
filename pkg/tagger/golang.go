@@ -44,6 +44,26 @@ func (p *plugin) toGolangStructName(parents []string, name string) string {
 	return n
 }
 
+func (p *plugin) toGolangFieldName(name string) string {
+	r := []rune(name)
+	x := r[0] == '_'
+	ss := strings.Split(name, "_")
+
+	var n string
+	if x {
+		n += "X"
+	}
+	for _, s := range ss {
+		if len(s) > 0 {
+			r := []rune(s)
+			r[0] = unicode.ToUpper(r[0])
+			n += string(r)
+		}
+	}
+
+	return n
+}
+
 func (p *plugin) modifyTargetFiles() error {
 	fset := token.NewFileSet()
 

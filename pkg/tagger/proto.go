@@ -3,8 +3,11 @@ package tagger
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
+	"github.com/fatih/structtag"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
 
@@ -59,6 +62,21 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 		s["XXX_sizecache"] = p.xxxTag
 	}
 
+	for _, field := range message.Field {
+		ext, err := p.getExtension(field.GetOptions(), E_Tags)
+		if err != nil {
+			return fmt.Errorf("failed to get extension for field '%s' type '%s': %s",
+				*field.Name, p.getMessageURI(parents, *message.Name), err.Error())
+		}
+		if len(ext) > 0 {
+			tags, err := structtag.Parse(ext)
+			if err != nil {
+				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
+			}
+			s[p.toGolangFieldName(*field.Name)] = tags
+		}
+	}
+
 	for _, m := range message.NestedType {
 		ps := p.addMessageParent(parents, *message.Name)
 		if err := p.analyzeMessageType(file, ps, m); err != nil {
@@ -71,6 +89,34 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 	}
 
 	return nil
+}
+
+func (p *plugin) getExtension(opts proto.Message, ext *proto.ExtensionDesc) (string, error) {
+	if opts == nil {
+		return "", nil
+	}
+
+	if !proto.HasExtension(opts, ext) {
+		return "", nil
+	}
+
+	val, err := proto.GetExtension(opts, ext)
+	if err != nil {
+		return "", fmt.Errorf("failed to get extension: %s", err.Error())
+	}
+
+	v := reflect.ValueOf(val)
+	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+		v = v.Elem()
+	}
+	val = v.Interface()
+
+	s, ok := val.(string)
+	if !ok {
+		return "", fmt.Errorf("cannot assign extension type '%q' to output type 'string'", v.Type().String())
+	}
+
+	return s, nil
 }
 
 func (p *plugin) getMessageURI(parents []string, message string) string {
