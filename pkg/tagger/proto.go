@@ -10,8 +10,18 @@ import (
 
 func (p *plugin) analyzeSourceFiles() error {
 	for _, f := range p.request.ProtoFile {
-		if err := p.analyzeFile(f); err != nil {
-			return fmt.Errorf("failed to analyze proto file '%s': %s", *f.Name, err.Error())
+		var generate bool
+		for _, g := range p.request.FileToGenerate {
+			if g == *f.Name {
+				generate = true
+				break
+			}
+		}
+
+		if generate {
+			if err := p.analyzeFile(f); err != nil {
+				return fmt.Errorf("failed to analyze proto file '%s': %s", *f.Name, err.Error())
+			}
 		}
 	}
 
