@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"strings"
 	"unicode"
@@ -60,11 +60,11 @@ func (p *plugin) modifyTargetFiles() error {
 		}
 
 		var buf bytes.Buffer
-		if err = printer.Fprint(&buf, fset, f); err != nil {
+		if err = format.Node(&buf, fset, f); err != nil {
 			return fmt.Errorf("failed to store updated Go file '%s': %s", path, err.Error())
 		}
 
-		content := string(buf.Bytes())
+		content := buf.String()
 		p.response.File = append(p.response.File, &plugin_go.CodeGeneratorResponse_File{
 			Name:    &name,
 			Content: &content,
