@@ -12,3 +12,4 @@
 *.out
 debug
 go.sum
+stdin.bin
