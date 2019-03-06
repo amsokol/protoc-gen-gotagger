@@ -10,14 +10,15 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 
-	tagger "github.com/amsokol/protoc-gen-gotagger/proto/tagger"
+	"github.com/amsokol/protoc-gen-gotagger/proto/tagger"
 )
 
+// analyzeSourceFiles scans source proto files one by one (calls plugin.analyzeFile func) to extract field tags
 func (p *plugin) analyzeSourceFiles() error {
-	for _, f := range p.request.ProtoFile {
+	for _, f := range p.request.GetProtoFile() {
 		var generate bool
-		for _, g := range p.request.FileToGenerate {
-			if g == *f.Name {
+		for _, g := range p.request.GetFileToGenerate() {
+			if g == f.GetName() {
 				generate = true
 				break
 			}
@@ -25,7 +26,7 @@ func (p *plugin) analyzeSourceFiles() error {
 
 		if generate {
 			if err := p.analyzeFile(f); err != nil {
-				return fmt.Errorf("failed to analyze proto file '%s': %s", *f.Name, err.Error())
+				return fmt.Errorf("failed to analyze proto file '%s': %s", f.GetName(), err.Error())
 			}
 		}
 	}
@@ -33,21 +34,24 @@ func (p *plugin) analyzeSourceFiles() error {
 	return nil
 }
 
+// analyzeFile scans source proto file (provided by 'f') to extract field tags
+// It proccess each proto message in the file one by one to find field tags.
+// In case on found it stores tags in plugin.targetFiles map to update Go files on the next phases.
 func (p *plugin) analyzeFile(f *descriptor.FileDescriptorProto) error {
-	if f.Syntax != nil && *f.Syntax != "proto3" {
-		return fmt.Errorf("unsupported syntax '%s', must be 'proto3'", *f.Syntax)
+	if f.GetSyntax() != "proto3" {
+		return fmt.Errorf("unsupported syntax '%s', must be 'proto3'", f.GetSyntax())
 	}
 
 	file := goFile{structs: map[string]goStruct{}}
 
-	for _, m := range f.MessageType {
+	for _, m := range f.GetMessageType() {
 		if err := p.analyzeMessageType(file, []string{}, m); err != nil {
-			return fmt.Errorf("failed to analyze message type '%s': %s", *m.Name, err.Error())
+			return fmt.Errorf("failed to analyze message type '%s': %s", m.GetName(), err.Error())
 		}
 	}
 
 	if len(file.structs) > 0 {
-		n := filepath.Base(*f.Name)
+		n := filepath.Base(f.GetName())
 		n = strings.TrimSuffix(n, filepath.Ext(n))
 		p.targetFiles[n+".pb.go"] = file
 	}
@@ -55,21 +59,26 @@ func (p *plugin) analyzeFile(f *descriptor.FileDescriptorProto) error {
 	return nil
 }
 
+// analyzeMessageType analyze proto Message:
+// - extracting field tags
+// - extracting OneOf tags
+// It drills down into nested proto Messages also.
 func (p *plugin) analyzeMessageType(file goFile, parents []string, message *descriptor.DescriptorProto) error {
 	s := goStruct{}
-	goMes := p.toGolangStructName(parents, *message.Name)
+	goMes := p.toGolangStructName(parents, message.GetName())
 
-	if p.xxxTag != nil {
-		s["XXX_NoUnkeyedLiteral"] = p.xxxTag
-		s["XXX_unrecognized"] = p.xxxTag
-		s["XXX_sizecache"] = p.xxxTag
+	if p.xxxTags != nil {
+		s["XXX_NoUnkeyedLiteral"] = p.xxxTags
+		s["XXX_unrecognized"] = p.xxxTags
+		s["XXX_sizecache"] = p.xxxTags
 	}
 
-	for _, field := range message.Field {
+	// scan proto message fields
+	for _, field := range message.GetField() {
 		ext, err := p.getExtension(field.GetOptions(), tagger.E_Tags)
 		if err != nil {
 			return fmt.Errorf("failed to get extension for field '%s' type '%s': %s",
-				*field.Name, p.getMessageURI(parents, *message.Name), err.Error())
+				field.GetName(), p.getMessageURI(parents, message.GetName()), err.Error())
 		}
 		if len(ext) > 0 {
 			tags, err := structtag.Parse(ext)
@@ -77,7 +86,7 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
 			}
 
-			n := p.toGolangFieldName(*field.Name)
+			n := p.toGolangFieldName(field.GetName())
 			if field.OneofIndex != nil {
 				oneOf := goStruct{}
 				oneOf[n] = tags
@@ -88,25 +97,29 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 		}
 	}
 
+	// scan proto message oneOfs
 	for _, oneOf := range message.GetOneofDecl() {
 		ext, err := p.getExtension(oneOf.GetOptions(), tagger.E_OneofTags)
 		if err != nil {
 			return fmt.Errorf("failed to get extension for oneof '%s' type '%s': %s",
-				*oneOf.Name, p.getMessageURI(parents, *message.Name), err.Error())
+				oneOf.GetName(), p.getMessageURI(parents, message.GetName()), err.Error())
 		}
 		if len(ext) > 0 {
 			tags, err := structtag.Parse(ext)
 			if err != nil {
 				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
 			}
-			s[p.toGolangFieldName(*oneOf.Name)] = tags
+			s[p.toGolangFieldName(oneOf.GetName())] = tags
 		}
 	}
 
-	for _, m := range message.NestedType {
-		ps := p.addMessageParent(parents, *message.Name)
+	// scan nested proto messages
+	for _, m := range message.GetNestedType() {
+		ps := make([]string, len(parents), len(parents)+1)
+		copy(ps, parents)
+		ps = append(ps, message.GetName())
 		if err := p.analyzeMessageType(file, ps, m); err != nil {
-			return fmt.Errorf("failed to analyze message type '%s': %s", p.getMessageURI(ps, *m.Name), err.Error())
+			return fmt.Errorf("failed to analyze message type '%s': %s", p.getMessageURI(ps, m.GetName()), err.Error())
 		}
 	}
 
@@ -117,6 +130,7 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 	return nil
 }
 
+// getExtension extract tags (proto extension) from field options.
 // Following code has been copied from here:
 // https://github.com/lyft/protoc-gen-star/blob/master/extension.go
 func (p *plugin) getExtension(opts proto.Message, ext *proto.ExtensionDesc) (string, error) {
@@ -147,18 +161,18 @@ func (p *plugin) getExtension(opts proto.Message, ext *proto.ExtensionDesc) (str
 	return s, nil
 }
 
+// getMessageURI construct message URI is used for error logging
+// Example of proto:
+// message Data1 {
+//	messafe Data2 {
+//	 ... fields
+//	}
+// }
+// So URI of Data2 proto mesage is 'Data1.Data2'.
 func (p *plugin) getMessageURI(parents []string, message string) string {
 	var res string
 	for _, s := range parents {
 		res += s + "."
 	}
 	return res + message
-}
-
-func (p *plugin) addMessageParent(parents []string, parent string) []string {
-	res := make([]string, 0, len(parents)+1)
-	for _, s := range parents {
-		res = append(res, s)
-	}
-	return append(res, parent)
 }

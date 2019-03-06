@@ -14,12 +14,22 @@ import (
 	"github.com/golang/protobuf/protoc-gen-go/plugin"
 )
 
+// goStruct is map of <field name>->tags.
 type goStruct map[string]*structtag.Tags
 
+// goFile is map of <struct name>->struct.
 type goFile struct {
 	structs map[string]goStruct
 }
 
+// toGolangStructName return Go struct name based on proto message name and its parents.
+// Example of proto:
+// message Data1 {
+//	messafe Data2 {
+//	 ... fields
+//	}
+// }
+// So Go struct name of Data2 is Data1Data2.
 func (p *plugin) toGolangStructName(parents []string, name string) string {
 	names := make([]string, len(parents), len(parents)+1)
 	copy(names, parents)
@@ -44,6 +54,12 @@ func (p *plugin) toGolangStructName(parents []string, name string) string {
 	return n
 }
 
+// toGolangFieldName return Go field name based on proto message field name.
+// Example of proto:
+// message Data1 {
+//	string __val2_value = 1;
+// }
+// So Go field name of __val2_value is XVal2Value.
 func (p *plugin) toGolangFieldName(name string) string {
 	r := []rune(name)
 	x := r[0] == '_'
@@ -64,6 +80,8 @@ func (p *plugin) toGolangFieldName(name string) string {
 	return n
 }
 
+// modifyTargetFiles updates target Go files one by one to insert field tags.
+// It appends updated Go files to the plugin.response.File slice.
 func (p *plugin) modifyTargetFiles() error {
 	fset := token.NewFileSet()
 
