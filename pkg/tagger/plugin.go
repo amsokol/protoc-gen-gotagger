@@ -27,11 +27,12 @@ type Plugin interface {
 // out - output stream to store result CodeGeneratorResponse serialized proto message
 func NewPlugin(in io.Reader, out io.Writer) Plugin {
 	return &plugin{
-		in:          in,
-		request:     &plugin_go.CodeGeneratorRequest{},
-		targetFiles: map[string]goFile{},
-		response:    &plugin_go.CodeGeneratorResponse{},
-		out:         out,
+		in:                 in,
+		request:            &plugin_go.CodeGeneratorRequest{},
+		originalFieldNames: []string{},
+		targetFiles:        map[string]goFile{},
+		response:           &plugin_go.CodeGeneratorResponse{},
+		out:                out,
 	}
 }
 
@@ -49,15 +50,22 @@ type plugin struct {
 	// XXX_unrecognized
 	// XXX_sizecache
 	// Tags are provided in command line. Example:
-	// protoc --proto_path=. -gotagger_out=xxx="bson+\"-\"",output_path=.:. data.proto
+	// protoc --proto_path=. -gotagger_out=xxx="bson+\"-\"",original_field_names=\"bson,graphql\",output_path=./test:./test data.proto
 	xxxTags *structtag.Tags
 
-	// outputPath is folder path where generated Go files are located
+	// originalFieldNames contains serialization types (e.g. bson, graphql, etc.)
+	// where field names should be equal to proto message field names.
+	// It adds the corresponding tags for each field.
 	// Example:
-	// protoc --proto_path=. -gotagger_out=xxx="bson+\"-\"",output_path=./test:./test data.proto
+	// protoc --proto_path=. -gotagger_out=xxx="bson+\"-\"",original_field_names=\"bson,graphql\",output_path=./test:./test data.proto
+	originalFieldNames []string
+
+	// outputPath is folder path where generated Go files are located.
+	// Example:
+	// protoc --proto_path=. -gotagger_out=xxx="bson+\"-\"",original_field_names=\"bson,graphql\",output_path=./test:./test data.proto
 	outputPath string
 
-	// targetFiles is map (filename->content) is containing data to update Go files
+	// targetFiles is map (filename->content) is containing data to update Go files.
 	targetFiles map[string]goFile
 
 	// response is CodeGeneratorResponse proto message contains updated Go files
@@ -135,6 +143,13 @@ func (p *plugin) parseParameter() error {
 			var err error
 			if p.xxxTags, err = structtag.Parse(strings.Replace(m[2], `+"`, `:"`, -1)); err != nil {
 				return fmt.Errorf("failed to parse XXX tags '%s': %s", m[2], err.Error())
+			}
+		case "original_field_names":
+			ss := strings.Split(strings.Trim(m[2], `"`), ",")
+			for _, s := range ss {
+				if len(strings.TrimSpace(s)) > 0 {
+					p.originalFieldNames = append(p.originalFieldNames, s)
+				}
 			}
 		case "output_path":
 			p.outputPath = m[2]

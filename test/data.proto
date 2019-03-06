@@ -4,7 +4,7 @@ package test;
 import "tagger/tagger.proto";
 
 message Data {
-    string val = 1 [(tagger.tags) = "graphql:\"name11,optional\" bson:\"name12,omitempty\"" ];
+    string val_vvall = 1 [(tagger.tags) = "graphql:\"name11,optional\" bson:\"name12,omitempty\"" ];
 
     oneof one_of {
         option (tagger.oneof_tags) = "graphql:\"withNewTags,optional\"";

@@ -75,17 +75,33 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 
 	// scan proto message fields
 	for _, field := range message.GetField() {
+		var tag string
+		for _, k := range p.originalFieldNames {
+			if len(tag) > 0 {
+				tag += " "
+			}
+			tag += k + `:"` + field.GetName() + `"`
+		}
+		ofn, err := structtag.Parse(tag)
+		if err != nil {
+			return fmt.Errorf("failed to parse tags '%s': %s", tag, err.Error())
+		}
+
 		ext, err := p.getExtension(field.GetOptions(), tagger.E_Tags)
 		if err != nil {
 			return fmt.Errorf("failed to get extension for field '%s' type '%s': %s",
 				field.GetName(), p.getMessageURI(parents, message.GetName()), err.Error())
 		}
-		if len(ext) > 0 {
-			tags, err := structtag.Parse(ext)
-			if err != nil {
-				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
-			}
+		tags, err := structtag.Parse(ext)
+		if err != nil {
+			return fmt.Errorf("failed to parse tags '%s': %s", ext, err.Error())
+		}
 
+		if tags, err = p.concatTags(tags, ofn); err != nil {
+			return fmt.Errorf("failed to merge tag: %s", err.Error())
+		}
+
+		if tags.Len() > 0 {
 			n := p.toGolangFieldName(field.GetName())
 			if field.OneofIndex != nil {
 				oneOf := goStruct{}
@@ -99,16 +115,33 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 
 	// scan proto message oneOfs
 	for _, oneOf := range message.GetOneofDecl() {
+		var tag string
+		for _, k := range p.originalFieldNames {
+			if len(s) > 0 {
+				tag += " "
+			}
+			tag += k + `:"` + oneOf.GetName() + `"`
+		}
+		ofn, err := structtag.Parse(tag)
+		if err != nil {
+			return fmt.Errorf("failed to parse tags '%s': %s", tag, err.Error())
+		}
+
 		ext, err := p.getExtension(oneOf.GetOptions(), tagger.E_OneofTags)
 		if err != nil {
 			return fmt.Errorf("failed to get extension for oneof '%s' type '%s': %s",
 				oneOf.GetName(), p.getMessageURI(parents, message.GetName()), err.Error())
 		}
-		if len(ext) > 0 {
-			tags, err := structtag.Parse(ext)
-			if err != nil {
-				return fmt.Errorf("failed to parse XXX tags '%s': %s", ext, err.Error())
-			}
+		tags, err := structtag.Parse(ext)
+		if err != nil {
+			return fmt.Errorf("failed to parse tags '%s': %s", ext, err.Error())
+		}
+
+		if tags, err = p.concatTags(tags, ofn); err != nil {
+			return fmt.Errorf("failed to merge tag: %s", err.Error())
+		}
+
+		if tags.Len() > 0 {
 			s[p.toGolangFieldName(oneOf.GetName())] = tags
 		}
 	}
@@ -128,6 +161,43 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 	}
 
 	return nil
+}
+
+// concatTags concatenates two tags.
+// tags1 has priority. It means tags2 does not override tags1.
+func (p *plugin) concatTags(tags1 *structtag.Tags, tags2 *structtag.Tags) (*structtag.Tags, error) {
+	if tags1.Len() == 0 {
+		return tags2, nil
+	}
+	if tags2.Len() == 0 {
+		return tags1, nil
+	}
+
+	for _, t2 := range tags2.Tags() {
+		var found bool
+		for _, t1 := range tags1.Tags() {
+			if t1.Key == t2.Key {
+				if len(t1.Name) == 0 {
+					t1.Name = t2.Name
+				}
+				if t1.Options == nil || len(t1.Options) == 0 {
+					t1.Options = t2.Options
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			var err error
+			s := tags1.String() + " " + t2.String()
+			tags1, err = structtag.Parse(s)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse tags '%s': %s", s, err.Error())
+			}
+		}
+	}
+
+	return tags1, nil
 }
 
 // getExtension extract tags (proto extension) from field options.
