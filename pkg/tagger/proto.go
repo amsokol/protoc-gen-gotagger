@@ -9,6 +9,8 @@ import (
 	"github.com/fatih/structtag"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+
+	tagger "github.com/amsokol/protoc-gen-gotagger/proto/tagger"
 )
 
 func (p *plugin) analyzeSourceFiles() error {
@@ -64,7 +66,7 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 	}
 
 	for _, field := range message.Field {
-		ext, err := p.getExtension(field.GetOptions(), E_Tags)
+		ext, err := p.getExtension(field.GetOptions(), tagger.E_Tags)
 		if err != nil {
 			return fmt.Errorf("failed to get extension for field '%s' type '%s': %s",
 				*field.Name, p.getMessageURI(parents, *message.Name), err.Error())
@@ -87,7 +89,7 @@ func (p *plugin) analyzeMessageType(file goFile, parents []string, message *desc
 	}
 
 	for _, oneOf := range message.GetOneofDecl() {
-		ext, err := p.getExtension(oneOf.GetOptions(), E_OneofTags)
+		ext, err := p.getExtension(oneOf.GetOptions(), tagger.E_OneofTags)
 		if err != nil {
 			return fmt.Errorf("failed to get extension for oneof '%s' type '%s': %s",
 				*oneOf.Name, p.getMessageURI(parents, *message.Name), err.Error())
