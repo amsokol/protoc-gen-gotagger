@@ -9,7 +9,7 @@ import (
 
 	"github.com/fatih/structtag"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/protoc-gen-go/plugin"
+	plugin_go "github.com/golang/protobuf/protoc-gen-go/plugin"
 )
 
 // Plugin is simple plugin interface.
